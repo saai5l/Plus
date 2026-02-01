@@ -1,0 +1,906 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <title>Plus Dev</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <meta property="og:type" content="website">
+<meta property="og:site_name" content="Plus Dev">
+<meta property="og:title" content="Plus Dev - متجر سكربتات فايف إم احترافية">
+<meta property="og:description" content="اكتشف أحدث السكربتات والأنظمة المتكاملة الخاصة بـ FiveM من Plus Dev. جودة واحترافية بدون منافس.">
+<meta property="og:url" content="https://plus-dev.wasmer.app/">
+<meta property="og:image" content="https://cdn.discordapp.com/avatars/990216490085142578/4b1d6f63ac4b6e1a59a320ef820a2053.png?size=1024">
+<meta property="og:image:width" content="800">
+<meta property="og:image:height" content="420">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#fc7823">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Favicon -->
+<link rel="icon" type="image/png" href="https://cdn.discordapp.com/avatars/990216490085142578/4b1d6f63ac4b6e1a59a320ef820a2053.png?size=1024">
+<link rel="shortcut icon" href="https://cdn.discordapp.com/avatars/990216490085142578/4b1d6f63ac4b6e1a59a320ef820a2053.png?size=1024" type="image/png">
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
+
+</head>
+<div id="req-modal" class="custom-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:9999; align-items:center; justify-content:center;">
+    <div class="modal-content" style="background:#1a1a1a; padding:30px; border-radius:15px; border:1px solid #333; text-align:right; max-width:400px; width:90%;">
+        <h3 id="req-title" style="color:#fc7823; margin-bottom:20px;">شروط التقديم</h3>
+        <div id="req-list" style="color:#eee; margin-bottom:25px;"></div>
+        <div style="display:flex; gap:10px;">
+            <button id="accept-req" class="modal-btn btn-confirm" style="flex:1;">أوافق</button>
+            <button onclick="closeReqModal()" class="modal-btn btn-cancel" style="flex:1;">إلغاء</button>
+        </div>
+    </div>
+</div>
+<body>
+<canvas id="particles-canvas" style="position: fixed; top: 0; left: 0; z-index: -1;"></canvas>
+
+<!-- Loading Screen -->
+<div id="loading-screen">
+    <div class="loader-content">
+        <div class="logo-wrapper">
+            <img src="https://cdn.discordapp.com/avatars/990216490085142578/4b1d6f63ac4b6e1a59a320ef820a2053.png?size=1024" class="loader-logo">
+            <div class="logo-glow"></div>
+        </div>
+        <div class="loading-bar-container">
+            <div class="loading-bar"></div>
+        </div>
+        <p class="loading-text">PLUS DEV IS LOADING...</p>
+    </div>
+</div>
+
+<div class="container">
+    <nav class="navbar">
+        <div class="nav-right-section">
+            <div class="auth-container" id="login-container">
+                <div aria-label="User Login Button" tabindex="0" role="button" class="user-profile-btn" id="login-btn" onclick="login()">
+                    <div class="user-profile-inner">
+                        <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <g data-name="Layer 2" id="Layer_2">
+                                <path d="m15.626 11.769a6 6 0 1 0 -7.252 0 9.008 9.008 0 0 0 -5.374 8.231 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 9.008 9.008 0 0 0 -5.374-8.231zm-7.626-4.769a4 4 0 1 1 4 4 4 4 0 0 1 -4-4zm10 14h-12a1 1 0 0 1 -1-1 7 7 0 0 1 14 0 1 1 0 0 1 -1 1z"></path>
+                            </g>
+                        </svg>
+                        <p>Log In</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="user-area" class="user-menu-container" style="display: none;">
+                <div class="user-avatar-wrapper" onclick="toggleUserMenu(event)">
+                    <img id="user-avatar" src="" alt="User">
+                </div>
+                <div id="user-dropdown" class="dropdown-content">
+                    <div class="user-header">
+                        <p id="user-display-name">تحميل...</p>
+                        <p id="user-discord-id" style="font-size: 12px; color: #888;"></p>
+                        <span id="user-status">Player</span>
+                    </div>
+                    
+                    <hr>
+<a href="#" id="track-btn" onclick="showPage('tracking-page')">
+    <i class="fas fa-search-location"></i> تتبع طلبك
+</a>
+
+<a href="#" id="admin-btn" style="display: none;" onclick="showPage('admin-dashboard')">
+    <i class="fas fa-user-shield"></i> لوحة الإدارة
+</a>
+<a href="javascript:void(0)" class="logout-item" onclick="logoutUser()">
+    <i class="fas fa-sign-out-alt"></i> تسجيل الخروج
+</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="nav-links">
+            <a class="active" href="#" onclick="showPage('home')">Home</a>
+            <a href="#" onclick="showPage('rules')">Rules</a>
+            <a href="#" onclick="showPage('tutorials')">Explanations</a>
+            <a href="#" onclick="showPage('jobs')">Apply Jobs</a>
+            <a href="https://discord.gg/pus" target="_blank">Store</a>
+        </div>
+
+<div class="social-links">
+    <a href="https://discord.gg/pus" target="_blank" class="plus-discord-btn">
+      <div class="plus-discord-inner">
+        <span>Join Discord</span>
+        <i class="fab fa-discord"></i>
+      </div>
+    </a>
+</div>
+    </nav>
+</div>
+
+<!-- TOP BIG LOGO (OUTSIDE NAVBAR) -->
+<div class="top-logo-section">
+    <img src="https://cdn.discordapp.com/avatars/990216490085142578/4b1d6f63ac4b6e1a59a320ef820a2053.png?size=1024" loading="lazy"
+         alt="Plus Dev Logo"
+         class="top-logo-img">
+</div>
+
+<!-- tracking-page -->
+<div id="tracking-page" class="page">
+    <div class="tracking-card">
+        <h2 style="color: #fc7823; text-align: center; margin-bottom: 25px;">
+            <i class="fas fa-clipboard-list"></i> حالة طلب التوظيف
+        </h2>
+        
+        <div id="no-app-message" style="text-align: center; color: #888; padding: 40px;">
+            <i class="fas fa-folder-open" style="font-size: 50px; display: block; margin-bottom: 10px;"></i>
+            <p>لم تقم بتقديم أي طلب حتى الآن.</p>
+        </div>
+
+        <div id="app-status-info" style="display: none;">
+            <div id="applications-list">
+                <div class="status-row">
+                    <span>الوظيفة المقدم عليها:</span>
+                    <strong id="track-job-name" style="color: #fc7823;">--</strong>
+                </div>
+                <div class="status-row">
+                    <span>رقم الطلب:</span>
+                    <strong id="track-app-id" style="color: #fc7823;">#--</strong>
+                </div>
+                <div class="status-row">
+                    <span>حالة الطلب الحالية:</span>
+                    <span id="track-status-label" class="status-badge">--</span>
+                </div>
+                <hr style="border: 0.1px solid #333; margin: 20px 0;">
+                <div class="status-row" style="flex-direction: column; align-items: flex-start;">
+                    <span style="margin-bottom: 10px;">ملاحظات الإدارة:</span>
+                    <div id="track-admin-note" class="note-area">لا توجد ملاحظات من الإدارة حتى الآن.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- admin-dashboard -->
+<div id="admin-dashboard" class="page">
+    <section class="admin-hero">
+        <div class="container">
+            <h1>لوحة الإدارة العليا </h1>
+            <p>مرحباً بك يا مدير، إليك ملخص حالة السيرفر والطلبات الحقيقية.</p>
+        </div>
+    </section>
+
+    <div class="container admin-grid">
+        <div class="admin-stats">
+            <div class="admin-card">
+                <i class="fas fa-users"></i>
+                <div class="stat-info">
+                    <h3 id="total-apps">0</h3>
+                    <p>إجمالي التقديمات</p>
+                </div>
+            </div>
+            <div class="admin-card">
+                <i class="fas fa-check-circle" style="color: #2ecc71;"></i>
+                <div class="stat-info">
+                    <h3 id="approved-apps">0</h3>
+                    <p>مقبول</p>
+                </div>
+            </div>
+            <div class="admin-card">
+                <i class="fas fa-times-circle" style="color: #e74c3c;"></i>
+                <div class="stat-info">
+                    <h3 id="rejected-apps">0</h3>
+                    <p>مرفوض</p>
+                </div>
+            </div>
+        </div>
+
+<div class="admin-actions">
+    <h2>التحكم السريع</h2>
+    <div class="actions-group">
+        <div class="toggle-container main-control">
+            <span>إغلاق/فتح الكل:</span>
+            <button id="toggle-all" class="toggle-btn" onclick="toggleAllJobs()">OFF</button>
+        </div>
+        
+        <hr style="width: 100%; border: 0.5px solid #333; margin: 15px 0;">
+        
+        <div class="toggle-item">
+            <span>الشرطة:</span>
+            <button id="toggle-police" class="toggle-btn" onclick="updateJobStatus('police')">ON</button>
+        </div>
+        <div class="toggle-item">
+            <span>الإسعاف:</span>
+            <button id="toggle-ems" class="toggle-btn" onclick="updateJobStatus('ems')">ON</button>
+        </div>
+        <div class="toggle-item">
+            <span>الإدارة:</span>
+            <button id="toggle-staff" class="toggle-btn" onclick="updateJobStatus('staff')">ON</button>
+        </div>
+    </div>
+</div>
+
+        <div class="admin-table-container">
+            <h2>آخر طلبات التوظيف</h2>
+            <table class="admin-table">
+<thead>
+    <tr>
+        <th>رقم الطلب</th>
+        <th>اسم الشخصية</th>
+        <th>الوظيفة</th>
+        <th>ملاحظات الإدارة</th> <th>الحالة</th>
+        <th>الإجراءات</th>
+    </tr>
+</thead>
+
+<button class="btn-clear-all" onclick="clearAllApplications()">
+    <i class="fa-solid fa-eraser"></i> تصفير جميع الطلبات
+</button>
+                <tbody id="jobs-table-body">
+                    </tbody>
+            </table>
+        </div>
+
+        
+    </div>
+</div>
+
+<!-- HOME PAGE -->
+<div class="page active" id="home">
+    <div class="container">
+
+        <section class="hero">
+            <div class="hero-content">
+                <h1>مرحبًا بك في Plus Dev</h1>
+                <p>لمتجر لبيع الملفات والمنتجات الخاصة بـ FiveM</p>
+
+                <a class="btn" onclick="showPage('rules')">القوانين</a>
+                <a class="btn" onclick="showPage('tutorials')">شروحات</a>
+                <a class="btn" onclick="showPage('jobs')">التقديم</a>
+            </div>
+        </section>
+
+<section class="social-media">
+  <h2>منصات التواصل</h2>
+  <p>مجتمع Plus Dev يمتلك حضورًا قويًا على منصات التواصل الاجتماعي</p>
+
+  <div class="stats">
+    <div class="stat-item">
+      <div class="stat-icon"><i class="fab fa-discord"></i></div>
+      <div>
+        <div class="stat-number" data-target="500">0</div>
+        <div class="stat-label">أعضاء في الدسكورد</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="stat-item">
+      <div class="stat-icon"><i class="fas fa-users"></i></div>
+      <div>
+        <div class="stat-number" data-target="2000">0</div>
+        <div class="stat-label">متابعين السوشيال ميديا</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+        <section class="links-section">
+            <div class="link-card">
+                <h3><i class="fas fa-info-circle"></i> من نحن</h3>
+                <p>نحن سيرفر FiveM متخصص CFW، ونسعى لإسعاد اللاعبين وخدمتهم في جميع مشاكلهم.</p>
+            </div>
+
+            <div class="link-card">
+                <h3><i class="fa-solid fa-book"></i> القوانين</h3>
+                <p>القوانين تهدف إلى تنظيم السيرفر واحترام الدستور.</p>
+                <a class="btn" onclick="showPage('rules')">اطلاع على القوانين</a>
+            </div>
+        </section>
+
+          <section class="updates-section container">
+    <h2 class="updates-title">آخر التحديثات</h2>
+    <p class="updates-subtitle">وش أضفنا مؤخراً في Plus Dev</p>
+
+    <div class="updates-grid">
+      <div class="update-card">
+        <div class="update-icon">
+          <i class="fa-solid fa-shop"></i>
+        </div>
+        <div class="update-content">
+          <h3>إضافة المتجر</h3>
+          <p>إضافة متجر خاص في السيرفر تم اضافة جميع المنجات.</p>
+          <span class="update-date">12 نوفمبر 2025</span>
+        </div>
+      </div>
+
+      <div class="update-card">
+        <div class="update-icon">
+          <i class="fas fa-people-group"></i>
+        </div>
+        <div class="update-content">
+          <h3>زيادت العدد</h3>
+          <p>تم زيادت العدد إلى 128 لاعب وهذا يتيح لعب افضل لي الجميع.</p>
+          <span class="update-date">10 نوفمبر 2025</span>
+        </div>
+      </div>
+
+      <div class="update-card">
+        <div class="update-icon">
+          <i class="fas fa-user-gear"></i>
+        </div>
+        <div class="update-content">
+          <h3>تعديل إلادارة</h3>
+          <p>تم تعديل و تغير إلادارة القديمة وتحسينها إلى الأفضل</p>
+          <span class="update-date">8 نوفمبر 2025</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+          <section class="team-section">
+            <h2 class="team-title">تعرف الفريق</h2>
+            <h3 class="team-subtitle">مؤسسين</h3>
+
+            <div class="team-grid">
+
+                <div class="team-card">
+                    <div class="team-banner"></div>
+                    <img src="https://cdn.discordapp.com/avatars/1237446569259958313/53588d0101e661785332ff76d374dd40.png?size=1024" class="team-img"loading="lazy">
+                    <h3 class="team-name">Saif</h3>
+                    <p class="team-role">مسؤول</p>
+                </div>
+
+                <div class="team-card">
+                    <div class="team-banner"></div>
+                    <img src="https://cdn.discordapp.com/avatars/1119971382168653847/3786acd98ef4f586b5d15c472c8e484d.png?size=1024" class="team-img"loading="lazy">
+                    <h3 class="team-name">Marco</h3>
+                    <p class="team-role">إداري</p>
+                </div>
+
+                <div class="team-card">
+                    <div class="team-banner"></div>
+                    <img src="https://cdn.discordapp.com/avatars/990216490085142578/23b89ab7a2b414761ffbeafcff41bb16.png?size=1024" class="team-img"loading="lazy">
+                    <h3 class="team-name">Hmmm!</h3>
+                    <p class="team-role">إداري</p>
+                </div>
+
+                <div class="team-card">
+                    <div class="team-banner"></div>
+                    <img src="https://cdn.discordapp.com/avatars/1050552192911818883/965cb0091642a65857a5278ea55f7366.png?size=1024" class="team-img" loading="lazy">
+                    <h3 class="team-name">Turki</h3>
+                    <p class="team-role">إداري</p>
+                </div>
+
+            </div>
+        </section>
+
+    </div>
+</div>
+
+<!-- RULES PAGE -->
+<div class="page" id="rules">
+  <div class="container">
+
+    <div class="rules-page">
+      <h1><i class="fa-solid fa-book"></i> قوانين السيرفر</h1>
+      <p>يمكنك قراءة القوانين بحسب تصنيفها</p>
+
+      <!-- BUTTONS -->
+      <div class="buttons-container">
+        <button class="law-btn active" onclick="showLawSection('rp-definitions')"><i class="fa-solid fa-id-card"></i> تعريفات RP</button>
+        <button class="law-btn" onclick="showLawSection('general-laws')"><i class="fa-solid fa-scale-balanced"></i> القوانين العامة</button>
+        <button class="law-btn" onclick="showLawSection('safe-zones')"><i class="fa-solid fa-shield-halved"></i> المناطق الآمنة</button>
+        <button class="law-btn" onclick="showLawSection('crime-laws')"><i class="fa-solid fa-handcuffs"></i> قوانين الإجرام</button>
+        <button class="law-btn" onclick="showLawSection('robbery-numbers')"><i class="fa-solid fa-building-columns"></i> أعداد السرقات</button>
+        <button class="law-btn" onclick="showLawSection('restaurant-laws')"><i class="fa-solid fa-utensils"></i> قوانين المطاعم</button>
+        <button class="law-btn" onclick="showLawSection('discord-laws')"><i class="fa-brands fa-discord"></i> قوانين الديسكورد</button>
+      </div>
+
+      <div class="law-section active" id="rp-definitions">
+        <div class="collapse-container">
+          <button class="collapse-btn">تعريفات الرول بلاي (RP)</button>
+          <div class="collapse-content">
+            <div class="collapse-content-inner">
+              <ul>
+                <li><strong>تعريف الحياة الواقعية:</strong> يجب عليك تقمص الشخصية داخل الرول بلاي.</li>
+                <li><strong>تعريف تقدير الحياة:</strong> يجب عليك تقدير الموقف مثل الواقع.</li>
+                <li><strong>VDM:</strong> يمنع استخدام المركبة كسلاح.</li>
+                <li><strong>RDM:</strong> القتل العشوائي ممنوع.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+       <div class="law-section" id="general-laws">
+        <div class="collapse-container">
+          <button class="collapse-btn">القوانين العامة</button>
+          <div class="collapse-content">
+            <div class="collapse-content-inner">
+              <ul>
+                <li>[1] يجب فهم معنى الرول بلاي والالتزام به.</li>
+                <li>[2] يمنع التطرق للسياسة والدين والأعراض — باند نهائي.</li>
+                <li>[3] يمنع تقليد الشخصيات أو الأسماء.</li>
+                <li>[4] يجب اختيار اسم كركتر واقعي.</li>
+                <li>[5] يمنع دخول نفس الشخص بشخصية ثانية في سيناريو قائم.</li>
+                <li>[6] يمنع دخول المنازل أثناء السيناريو.</li>
+                <li>[7] يجب تشغيل برنامج تصوير أثناء اللعب.</li>
+                <li>[8] يمنع التدخل في أي سيناريو قائم.</li>
+                <li>[9] يمنع لبس الملابس العسكرية.</li>
+                <li>[10] يمنع التعرض للمسعفين أو سرقة معدات الشرطة.</li>
+                <li>[11] تمنع الشخصنة نهائيًا.</li>
+                <li>[12] يمنع Meta Gaming.</li>
+                <li>[13] ممنوع لبس الخوذة أثناء القتال.</li>
+                <li>[14] يمنع استخدام البرامج الخارجية.</li>
+                <li>[15] ممنوع إهانة الجثث.</li>
+                <li>[16] ممنوع تغيير الشكل بعد الجريمة.</li>
+                <li>[17] عند الموت — ممنوع الرجوع للسيناريو.</li>
+                <li>[18] ممنوع ترابط الشخصيات.</li>
+                <li>[19] لازم تقمص شخصيتك دائمًا.</li>
+                <li>[20] إذا غيرت صوت الشخصية يجب أن يبقى ثابتًا.</li>
+                <li>[21] يجب تقدير قيمة المركبة.</li>
+                <li>[22] ممنوع الكذب بالمصطلحات.</li>
+                <li>[23] ممنوع الكلام المشفر.</li>
+                <li>[24] استغلال القلتشات = باند نهائي.</li>
+                <li>[25] عند الموت تنسى من قتلك.</li>
+                <li>[26] ممنوع الستريم سنايب.</li>
+                <li>[27] الإعصار يعيدك لمكان السيناريو.</li>
+                <li>[28] ممنوع الكلام خارج الرول بلاي.</li>
+                <li>[29] الالتزام بالذوق العام.</li>
+                <li>[30] ممنوع الخروج أثناء السيناريو.</li>
+                <li>[31] ممنوع القتل بدون سبب.</li>
+                <li>[32] يمنع لبس معدات الغوص خارج البحر.</li>
+                <li>[33] يمنع حمل اللاعبين داخل المركبات.</li>
+                <li>[34] عند انفجار 4 كفرات يجب التوقف.</li>
+                <li>[35] ممنوع العلاج بوجود مسعف.</li>
+                <li>[36] الإجرام قبل الإعصار بـ15 دقيقة ممنوع.</li>
+                <li>[37] يجب تقدير الموقف دائمًا.</li>
+                <li>[38] يمنع دخول بث السيرفر وأنت داخله.</li>
+                <li>[39] يمنع التلفظ بدون سبب.</li>
+                <li>[40] ممنوع إطلاق النار في منطقة حكومية.</li>
+                <li>[41] يجب لبس ملابس تناسب الوظيفة.</li>
+                <li>[42] مشاركة الحسابات = باند نهائي.</li>
+                <li>[43] يمنع التخريم خلف الجدار.</li>
+                <li>[44] المناطق الآمنة ليست للحماية.</li>
+                <li>[45] يمنع سرقة الشرطة أو EMS.</li>
+                <li>[46] القفزات الانتحارية ممنوعة.</li>
+                <li>[47] التهديد يجب أن يكون مباشرًا.</li>
+                <li>[48] إذا انصاع المواطن يمنع قتله.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+<div class="law-section" id="safe-zones">
+  <div class="collapse-container">
+    <button class="collapse-btn">المناطق الآمنة</button>
+    <div class="collapse-content">
+      <div class="collapse-content-inner">
+        <ul>
+          <li>مراكز الشرطة</li>
+          <li>المستشفيات</li>
+          <li>الشقق العامة</li>
+          <li>المطاعم والكافيهات</li>
+          <li>ورش تصليح المركبات</li>
+          <li>مركز الوظائف</li>
+          <li>العقار</li>
+          <li>السجن</li>
+          <li>المحكمة</li>
+          <li>حجز المركبات</li>
+          <li>معارض السيارات</li>
+          <li>تأجير السيارات</li>
+          <li>الكازينو</li>
+          <li>ايكيا</li>
+          <li><strong>وجميع المواقف التابعة لها تعتبر آمنة.</strong></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="law-section" id="crime-laws">
+  <div class="collapse-container">
+    <button class="collapse-btn">قوانين الإجرام</button>
+    <div class="collapse-content">
+      <div class="collapse-content-inner">
+        <ul>
+          <li>[1] يجب تقمص الحياة الواقعية أثناء السيناريو.</li>
+          <li>[2] ممنوع الاتفاق مع شخص ليكون رهينة.</li>
+          <li>[4] مدة رهن الرهينة 20 دقيقة فقط.</li>
+          <li>[5] ممنوع المتاجرة بالممنوعات بالمناطق الآمنة.</li>
+          <li>[6] ممنوع سرقة المواطن بدون عداوة مثبتة.</li>
+          <li>[7] الحد الأقصى للعائلات: 10 أشخاص.</li>
+          <li>[8] ممنوع تحالف العصابات ضد الداخلية إلا في السرقات.</li>
+          <li>[9] ممنوع خطف رهينة للتفاوض على السجناء.</li>
+          <li>[10] ممنوع الاعتداء على المفاوضين.</li>
+          <li>[11] ممنوع مقاومة سلاح ناري بسلاح أبيض.</li>
+          <li>[12] ممنوع الخطف أو الاعتداء بقضايا المرور.</li>
+          <li>[13] ممنوع مشاركة الرهينة مع خاطفين آخرين.</li>
+          <li>[14] ممنوع تقليد ملابس العصابات.</li>
+          <li>[15] يمنع الخطف بوجود مدنيين.</li>
+          <li>[16] ممنوع خطف موظف حكومي.</li>
+          <li>[17] ممنوع البقاء في موقع السرقة بعد التنفيذ.</li>
+          <li>[18] ممنوع إيموت الباركور والسلايد.</li>
+          <li>[19] ممنوع إطلاق النار داخل الهيومن لاب والمترو.</li>
+          <li>[20] ممنوع طلب مبالغ مالية من الرهينة.</li>
+          <li>[21] عند إسقاطك يمنع إعطاء كول آوت.</li>
+          <li>[22] يجب التخطيط قبل السرقة.</li>
+          <li>[23] الحد الداخل للسيناريو للعصابة: 4 فقط.</li>
+          <li>[24] افتعال فايت بدون سبب = باند نهائي.</li>
+          <li>[25] الحد الأعلى للرهائن: 4 فقط.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="law-section" id="robbery-numbers">
+
+  <div class="collapse-container">
+    <button class="collapse-btn">أعداد السرقات</button>
+
+    <div class="collapse-content">
+      <div class="collapse-content-inner robbery-rules">
+
+        <h3>عدد الأشخاص في السرقات</h3>
+        <ul>
+          <li>❖ Store Robbery <span>(1–3)</span></li>
+          <li>❖ ATM Robbery <span>(1–3)</span></li>
+          <li>❖ House Robbery <span>(1–4)</span></li>
+          <li>❖ Police Staff House <span>(2–5)</span></li>
+        </ul>
+
+        <div class="robbery-warning">
+          ⚠️ <strong>تنبيه:</strong> السرقات التالية تتطلب إحضار رهينة.
+        </div>
+
+        <ul>
+          <li>❖ DigitalDen Robbery <span>(2–5)</span></li>
+          <li>❖ Laundromat Robbery <span>(2–5)</span></li>
+          <li>❖ Cash Exchange Robbery <span>(3–6)</span></li>
+          <li>❖ Jewelry Robbery <span>(3–7)</span></li>
+          <li>❖ Blaine County Robbery <span>(4–7)</span></li>
+          <li>❖ Maze Bank <span>(5–10)</span></li>
+        </ul>
+
+        <h3>الوحدات المباشرة للحالات</h3>
+        <ul>
+          <li>❖ Store Robbery <span>(5)</span></li>
+          <li>❖ ATM Robbery <span>(5)</span></li>
+          <li>❖ House Robbery <span>(6)</span></li>
+          <li>❖ Police Staff House <span>(7)</span></li>
+          <li>❖ DigitalDen Robbery <span>(7)</span></li>
+          <li>❖ Laundromat Robbery <span>(7)</span></li>
+          <li>❖ Cash Exchange Robbery <span>(8)</span></li>
+          <li>❖ Jewelry Robbery <span>(9)</span></li>
+          <li>❖ Blaine County Robbery <span>(9)</span></li>
+          <li>❖ Maze Bank <span>(12)</span></li>
+        </ul>
+
+        <h3>الحالات المفتوحة</h3>
+        <ul>
+          <li>❖ For Players <span>7 MAX</span></li>
+          <li>❖ For Police <span>11 MAX</span></li>
+        </ul>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="law-section" id="restaurant-laws">
+  <div class="collapse-container">
+    <button class="collapse-btn">قوانين المطاعم</button>
+    <div class="collapse-content">
+      <div class="collapse-content-inner">
+        <ul>
+          <li>[1] احترام موظفي المطاعم وعدم الإساءة لهم.</li>
+          <li>[2] يمنع المفاوضة على الأسعار.</li>
+          <li>[3] يمنع لبس ملابس موظفي المطاعم.</li>
+          <li>[4] يجب الالتزام بمواقف المطاعم.</li>
+          <li>[5] الوقوف بشكل منظم للحصول على الطعام.</li>
+          <li>[6] الأسعار قابلة للتغيير.</li>
+          <li>[7] البيع داخل المطعم فقط.</li>
+          <li>[8] يمنع سرقة الموظفين.</li>
+          <li>[9] يمنع بيع الوجبات لغير الموظفين.</li>
+          <li>[10] يمنع خطف موظفي المطاعم أثناء العمل.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="law-section" id="discord-laws">
+  <div class="collapse-container">
+    <button class="collapse-btn">قوانين الديسكورد</button>
+    <div class="collapse-content">
+      <div class="collapse-content-inner">
+        <ul>
+          <li>[1] احترام الجميع وعدم السب أو الإهانة.</li>
+          <li>[2] يمنع نشر الروابط أو دعوات السيرفرات.</li>
+          <li>[3] ممنوع التدخل في شؤون الآخرين.</li>
+          <li>[4] ممنوع التطرق للدين أو السياسة.</li>
+          <li>[5] امتلاك أكثر من حساب = باند نهائي.</li>
+          <li>[6] انتحال الشخصيات الإدارية = باند مباشر.</li>
+          <li>[7] السخرية والاستهزاء يعاقب عليها.</li>
+          <li>[8] الاستفسارات عبر الدعم الفني فقط.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- NOTE -->
+<div class="note">
+    <strong>ملاحظة:</strong>
+        <ul>
+            <li>يجب على الجميع ان يكون جدي في طريقة اللعب وطريقة إختياره للشخصيه .. تقمص الرول البلاي الحقيقي.</li>
+            <li>القوانين قابلة للتغيير والتعديل وجميع الحقوق محفوظة لدى.</li>
+        </ul>
+</div>
+
+<section id="faq-display-section" class="faq-standalone-section">
+  <div class="faq-box">
+
+    <div class="faq-title-area">
+      <span class="faq-icon-top">💡</span>
+      <h2>الأسئلة الشائعة</h2>
+      <p>إجابات سريعة لأكثر الاستفسارات تكراراً داخل السيرفر</p>
+    </div>
+
+    <div class="faq-accordion-container">
+
+      <div class="faq-item">
+        <button class="faq-question">كيف يمكنني الحصول على عمل قانوني؟</button>
+        <div class="faq-answer">
+          <p>توجه إلى City Hall ثم مركز التوظيف واختر الوظيفة المناسبة.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question">ماذا أفعل إذا تعرضت لاعتداء أو سرقة؟</button>
+        <div class="faq-answer">
+          <p>اتصل بالشرطة فوراً أو توجه لأقرب مركز شرطة لتقديم بلاغ.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question">كيف أشتري سيارة؟</button>
+        <div class="faq-answer">
+          <p>اذهب لمعرض السيارات، تأكد أن عندك المبلغ الكافي ورخصة قيادة.</p>
+        </div>
+      </div>
+
+    </div> <!-- faq-accordion-container -->
+
+  </div> <!-- faq-box -->
+</section>
+
+        </div>
+
+    </div>
+</div>
+
+<!-- TUTORIALS PAGE -->
+<div class="page" id="tutorials">
+    <div class="container">
+        <h1><i class="fa-solid fa-clapperboard"></i> الشروحات</h1>
+        <p>شروحات مرئية لمساعدتك في فهم المشتريات</p>
+
+        <div class="tutorials-grid">
+
+            <div class="tutorial-card">
+                <iframe class="tutorial-video"
+                        src="https://www.youtube.com/embed/MSD8MJhnD-I?start=366"
+                        frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen>
+                </iframe>
+
+                <div class="tutorial-info">
+                    <h3>شرح تركيب داتا بيس</h3>
+                    <p>شرح تركيب داتا بيس عن طريق تطبيق الxampp و heidisql بتفاصيل
+                    </p>
+                </div>
+            </div>
+            
+            
+            <div class="tutorial-card">
+                <iframe class="tutorial-video"
+                        src="https://www.youtube.com/embed/_PR6CIU_6nM"
+                        frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen>
+                </iframe>
+
+                <div class="tutorial-info">
+                    <h3>شرح تركيب سكربت</h3>
+                    <p>شرح تركيب سكربت في السيرفر حقك تشغيله في server.cfg او TX Admin </p>
+                </div>
+            </div>
+
+                        <div class="tutorial-card">
+                <iframe class="tutorial-video"
+                        src="https://www.youtube.com/embed/jJKpPejTF5I"
+                        frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen>
+                </iframe>
+
+                <div class="tutorial-info">
+                    <h3>شرح فتح سيرفر</h3>
+                    <p>الشرح عن xampp ,heidisql ,txadmin ,server.cfg ,Database</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- JOBS PAGE -->
+<div class="page" id="jobs">
+    <div class="container">
+        <h1><i class="fa-solid fa-paper-plane"></i> تقديم الوظائف</h1>
+        <p>اختر الوظيفة التي ترغب في التقديم عليها</p>
+
+        <div class="jobs-container">
+            <div class="job-card">
+                <h3><i class="fa-solid fa-shield-halved"></i> التقديم LSPD</h3>
+                <p>انضم إلى الشرطة LSPD</p>
+                <button id="btn-police" class="btn" onclick="openJobModal('police')">تقديم الآن</button>
+            </div>
+
+            <div class="job-card">
+                <h3><i class="fa-solid fa-star-of-life"></i> التقديم ems</h3>
+                <p>انضم إلى الإسعاف ems</p>
+                <button id="btn-ems" class="btn" onclick="openJobModal('ems')">تقديم الآن</button>
+            </div>
+
+            <div class="job-card">
+                <h3><i class="fa-solid fa-user-gear"></i> التقديم الإدارة</h3>
+                <p>انضم إلى فريق الإدارة</p>
+                <button id="btn-staff" class="btn" onclick="openJobModal('staff')">تقديم الآن</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JOB MODAL -->
+<div id="job-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">تقديم على وظيفة</h3>
+            <button class="close-modal" onclick="closeModal()">&times;</button>
+        </div>
+        <form id="job-form">
+            <input type="hidden" id="job-type">
+            
+            <div class="form-group">
+                <label>أسمك الثلاثي (Character Name)</label>
+                <input type="text" id="character-name" placeholder="اسم شخصيتك في اللعبة / اسمك الحقيقي" required>
+            </div>
+
+            <div class="form-group">
+                <label>Steam - ستيم</label>
+                <input type="text" id="character-id" placeholder="steam:1100001" required>
+            </div>
+
+            <div class="form-group">
+                <label for="discord-id-input">Discord ID - أيدي الديسكورد</label>
+                <input type="text" id="discord-id-input" placeholder="سجل دخولك لجلب الأيدي" class="locked-input">
+            </div>
+
+            <div class="form-group">
+                <label>Your Available Time - الوقت المتاح</label>
+                <input type="text" id="phone-number" placeholder="مثال: 5-8 ساعات" required>
+            </div>
+
+            <div class="form-group">
+                <label>Reason For Apply - سبب التقديم</label>
+                <input type="text" id="reason" placeholder="اكتب سبب تقديمك هنا..." required>
+            </div>
+
+            <div class="modal-footer">
+                <button type="submit" class="btn">إرسال الطلب</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Notification -->
+<div id="notification" class="notification">
+    <span id="notification-message"></span>
+</div>
+
+<!-- Notification -->
+<div class="notification" id="notification">
+    <i class="fas fa-check-circle"></i>
+    <span id="notification-message">تم إرسال تقديمك وستصلك رسالة بالقبول</span>
+</div>
+
+<!-- ai-chat -->
+<div id="ai-chat-toggle" class="ai-bubble" onclick="toggleChat()">
+    <span>🤖</span>
+</div>
+
+<div id="ai-chat-window" class="chat-window">
+    
+    <div class="chat-header">
+        <div class="header-content">
+            <span class="online-dot"></span>
+            <span>مساعد بلس لايف الذكي</span>
+        </div>
+        <button class="close-btn" onclick="toggleChat()">×</button>
+    </div>
+    
+    <div id="chat-body" class="chat-body">
+        <div class="ai-msg">
+            مرحبًا بك! 🌟 أنا هنا لأساعدك في أي سؤال يخص قوانين السيرفر أو أي استفسار آخر.
+        </div>
+    </div>
+
+    <div class="chat-footer">
+        <input type="text" id="ai-input" placeholder="اكتب سؤالك هنا...">
+        <button id="send-btn" onclick="askAI()">إرسال</button>
+    </div>
+</div>
+
+<!-- Footer -->
+<div class="container">
+    <footer class="footer">
+        <div class="social-icons">
+            <!-- YouTube -->
+            <a href="https://www.youtube.com/@PlusDev" target="_blank">
+                <i class="fab fa-youtube"></i>
+            </a>
+
+            <!-- Twitter / X -->
+            <a href="https://twitter.com/PlusDev" target="_blank">
+                <i class="fab fa-twitter"></i>
+            </a>
+
+            <!-- TikTok -->
+            <a href="https://www.tiktok.com/@plusdev" target="_blank">
+                <i class="fab fa-tiktok"></i>
+            </a>
+
+            <!-- Instagram -->
+            <a href="https://www.instagram.com/plusdev/" target="_blank">
+                <i class="fab fa-instagram"></i>
+            </a>
+
+            <!-- Discord -->
+            <a href="https://discord.gg/pus" target="_blank">
+                <i class="fab fa-discord"></i>
+            </a>
+        </div>
+
+        <div class="footer-divider"></div>
+
+        <div class="copyright">
+            جميع الحقوق محفوظة © Plus Dev 2025
+        </div>
+        
+    </footer>
+</div>
+
+<!-- Notification New -->
+<div id="confirm-modal" class="custom-modal">
+    <div class="modal-content">
+        <i id="modal-icon" class="fa-solid fa-circle-exclamation modal-icon"></i>
+        <h3 id="modal-title">تأكيد الإجراء</h3>
+        <p id="modal-message">هل أنت متأكد من تنفيذ هذا القرار؟</p>
+        <div class="modal-buttons">
+            <button id="confirm-yes" class="modal-btn btn-confirm">تأكيد</button>
+            <button id="confirm-no" class="modal-btn btn-cancel" onclick="closeConfirmModal()">إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
+
+
+
