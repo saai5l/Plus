@@ -534,7 +534,7 @@ async function askAI() {
 
 
 const CLIENT_ID = '1453875994988380373'; 
-const REDIRECT_URI = 'https://saai5l.github.io/Plus/';
+const REDIRECT_URI = 'https://plus-xi.vercel.app/';
 const ADMIN_IDS = ["1453875192009986166","1462236116785827851"]; 
 
 function login() {
