@@ -534,7 +534,7 @@ async function askAI() {
 
 
 const CLIENT_ID = '1453875994988380373'; 
-const REDIRECT_URI = 'https://saai5l.github.io/Plus/index.html';
+const REDIRECT_URI = 'https://saai5l.github.io/Plus/';
 const ADMIN_IDS = ["1453875192009986166","1462236116785827851"]; 
 
 function login() {
@@ -791,8 +791,15 @@ function clearLogs() {
 }
 
 const firebaseConfig = {
-    databaseURL: "https://planning-with-ai-60a3c-default-rtdb.firebaseio.com" 
+  apiKey: "AIzaSyAv3pd6c79-p3rwINbSBRx78lpLlgpxVao",
+  authDomain: "planning-with-ai-60a3c.firebaseapp.com",
+  databaseURL: "https://planning-with-ai-60a3c-default-rtdb.firebaseio.com",
+  projectId: "planning-with-ai-60a3c",
+  storageBucket: "planning-with-ai-60a3c.firebasestorage.app",
+  messagingSenderId: "493882886067",
+  appId: "1:493882886067:web:e7503e286755ed72042dc6"
 };
+
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 
