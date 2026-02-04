@@ -546,7 +546,7 @@ async function askAI() {
 
 
 const CLIENT_ID = '1453875994988380373'; 
-const REDIRECT_URI = 'http://127.0.0.1:5500/index.html'; 
+const REDIRECT_URI = 'https://plus-asq3.vercel.app/'; 
 const ADMIN_IDS = ["1453875192009986166","1462236116785827851"]; 
 
 function login() {
