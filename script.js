@@ -1,10 +1,24 @@
 
-        const jobConfig = {
-            police: { open: true, webhook: "https://discord.com/api/webhooks/1462742583515156668/p-BwPQ1WMi6fj8NhAGa0W9GtZFXNwU5Gkas_pQAkqnJVHPJrLvOU7sWLg-YzedUmwZwJ" },
-            ems: { open: true, webhook: "https://discord.com/api/webhooks/1462742583515156668/p-BwPQ1WMi6fj8NhAGa0W9GtZFXNwU5Gkas_pQAkqnJVHPJrLvOU7sWLg-YzedUmwZwJ" },
-            staff: { open: true, webhook: "https://discord.com/api/webhooks/1462742583515156668/p-BwPQ1WMi6fj8NhAGa0W9GtZFXNwU5Gkas_pQAkqnJVHPJrLvOU7sWLg-YzedUmwZwJ" }
-        };
+const firebaseConfig = {
+  apiKey: "AIzaSyAv3pd6c79-p3rwINbSBRx78lpLlgpxVao",
+  authDomain: "planning-with-ai-60a3c.firebaseapp.com",
+  databaseURL: "https://planning-with-ai-60a3c-default-rtdb.firebaseio.com",
+  projectId: "planning-with-ai-60a3c",
+  storageBucket: "planning-with-ai-60a3c.firebasestorage.app",
+  messagingSenderId: "493882886067",
+  appId: "1:493882886067:web:0d5c3bca278f49b8042dc6"
+};
 
+// تشغيل Firebase
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+
+// باقي كودك القديم يبدأ من هنا...
+const jobConfig = {
+    police: { open: true, webhook: "https://discord.com/api/webhooks/1462742583515156668/p-BwPQ1WMi6fj8NhAGa0W9GtZFXNwU5Gkas_pQAkqnJVHPJrLvOU7sWLg-YzedUmwZwJ" },
+    ems: { open: true, webhook: "https://discord.com/api/webhooks/1462742583515156668/p-BwPQ1WMi6fj8NhAGa0W9GtZFXNwU5Gkas_pQAkqnJVHPJrLvOU7sWLg-YzedUmwZwJ" },
+    staff: { open: true, webhook: "https://discord.com/api/webhooks/1462742583515156668/p-BwPQ1WMi6fj8NhAGa0W9GtZFXNwU5Gkas_pQAkqnJVHPJrLvOU7sWLg-YzedUmwZwJ" }
+};
 function showPage(pageId) {
   if (pageId === 'admin-dashboard') {
       const savedUser = JSON.parse(localStorage.getItem('user'));
@@ -220,10 +234,8 @@ const jobTitle = getJobTitle(jobType);
 });
 
 function saveToAdminDashboard(name, job, reason, discordId, appId) {
-    let apps = JSON.parse(localStorage.getItem('serverApplications')) || [];
-    
     const newApp = {
-        appId: appId, // هنا سيتم تخزين PLUS-200 وما بعده
+        appId: appId,
         name: name,
         job: job,
         date: new Date().toLocaleDateString('ar-EG'),
@@ -233,8 +245,8 @@ function saveToAdminDashboard(name, job, reason, discordId, appId) {
         adminNote: ""
     };
 
-    apps.push(newApp);
-    localStorage.setItem('serverApplications', JSON.stringify(apps));
+    // الحفظ في Firebase بدلاً من localStorage
+    database.ref('serverApplications/' + appId).set(newApp);
 }
 
 function getJobTitle(jobType) {
@@ -534,7 +546,7 @@ async function askAI() {
 
 
 const CLIENT_ID = '1453875994988380373'; 
-const REDIRECT_URI = 'https://plus-xi.vercel.app/';
+const REDIRECT_URI = 'http://127.0.0.1:5500/index.html'; 
 const ADMIN_IDS = ["1453875192009986166","1462236116785827851"]; 
 
 function login() {
@@ -689,42 +701,44 @@ function loadAdminData() {
     const tableBody = document.getElementById('jobs-table-body');
     if (!tableBody) return;
 
-    let apps = JSON.parse(localStorage.getItem('serverApplications')) || [];
-    
-    if(document.getElementById('total-apps')) document.getElementById('total-apps').textContent = apps.length;
-    if(document.getElementById('approved-apps')) document.getElementById('approved-apps').textContent = apps.filter(a => a.status === 'مقبول').length;
-    if(document.getElementById('rejected-apps')) document.getElementById('rejected-apps').textContent = apps.filter(a => a.status === 'رفض').length;
-
-    tableBody.innerHTML = ""; 
-
-    if (apps.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="6" class="empty-msg">لا توجد طلبات تقديم حالياً</td></tr>`;
-        return;
-    }
-
-    [...apps].reverse().forEach((app, index) => {
-        const actualIndex = apps.length - 1 - index;
-        const statusClass = app.status === 'مقبول' ? 'status-approved' : (app.status === 'رفض' ? 'status-rejected' : 'status-pending');
+    // القراءة من Firebase مباشرة
+    database.ref('serverApplications').on('value', (snapshot) => {
+        const appsData = snapshot.val();
+        const apps = appsData ? Object.values(appsData) : [];
         
-        tableBody.innerHTML += `
-            <tr>
-                <td class="app-id-cell">${app.appId || '---'}</td>
-                <td class="user-name">${app.name}</td>
-                <td class="job-type">${app.job}</td>
-                <td>
-                    <textarea id="admin-note-${actualIndex}" 
-                              class="admin-textarea" 
-                              placeholder="أضف ملاحظة للمستخدم...">${app.adminNote || ''}</textarea>
-                </td>
-                <td><span class="status-tag ${statusClass}">${app.status}</span></td>
-                <td>
-                    <div class="action-group">
-                        <button class="action-btn btn-accept" onclick="submitDecision(${actualIndex}, 'مقبول')" title="قبول"><i class="fa-solid fa-check"></i></button>
-                        <button class="action-btn btn-decline" onclick="submitDecision(${actualIndex}, 'رفض')" title="رفض"><i class="fa-solid fa-xmark"></i></button>
-                        <button class="action-btn btn-remove" onclick="deleteApplication(${actualIndex})" title="حذف"><i class="fa-solid fa-trash-can"></i></button>
-                    </div>
-                </td>
-            </tr>`;
+        // تحديث الإحصائيات
+        if(document.getElementById('total-apps')) document.getElementById('total-apps').textContent = apps.length;
+        if(document.getElementById('approved-apps')) document.getElementById('approved-apps').textContent = apps.filter(a => a.status === 'مقبول').length;
+        if(document.getElementById('rejected-apps')) document.getElementById('rejected-apps').textContent = apps.filter(a => a.status === 'رفض').length;
+
+        tableBody.innerHTML = ""; 
+
+        if (apps.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="6" class="empty-msg">لا توجد طلبات تقديم حالياً</td></tr>`;
+            return;
+        }
+
+        // عرض التذاكر (الأحدث أولاً)
+        apps.reverse().forEach((app) => {
+            const statusClass = app.status === 'مقبول' ? 'status-approved' : (app.status === 'رفض' ? 'status-rejected' : 'status-pending');
+            
+            tableBody.innerHTML += `
+                <tr>
+                    <td class="app-id-cell">${app.appId}</td>
+                    <td class="user-name">${app.name}</td>
+                    <td class="job-type">${app.job}</td>
+                    <td>
+                        <textarea id="admin-note-${app.appId}" class="admin-textarea" placeholder="أضف ملاحظة...">${app.adminNote || ''}</textarea>
+                    </td>
+                    <td><span class="status-tag ${statusClass}">${app.status}</span></td>
+                    <td>
+                        <div class="action-group">
+                            <button class="action-btn btn-accept" onclick="executeDecision('${app.appId}', 'مقبول')"><i class="fa-solid fa-check"></i></button>
+                            <button class="action-btn btn-decline" onclick="executeDecision('${app.appId}', 'رفض')"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                    </td>
+                </tr>`;
+        });
     });
 }
 
@@ -790,18 +804,7 @@ function clearLogs() {
     }
 }
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAv3pd6c79-p3rwINbSBRx78lpLlgpxVao",
-  authDomain: "planning-with-ai-60a3c.firebaseapp.com",
-  databaseURL: "https://planning-with-ai-60a3c-default-rtdb.firebaseio.com",
-  projectId: "planning-with-ai-60a3c",
-  storageBucket: "planning-with-ai-60a3c.firebasestorage.app",
-  messagingSenderId: "493882886067",
-  appId: "1:493882886067:web:e7503e286755ed72042dc6"
-};
 
-firebase.initializeApp(firebaseConfig);
-const database = firebase.database();
 
 function updateJobStatus(jobType) {
     const btn = document.getElementById(`toggle-${jobType}`);
@@ -983,18 +986,14 @@ function logoutUser() {
     );
 }
 
-function executeDecision(index, status) {
-    let apps = JSON.parse(localStorage.getItem('serverApplications')) || [];
-    const noteInput = document.getElementById(`admin-note-${index}`);
+function executeDecision(appId, status) {
+    const note = document.getElementById(`admin-note-${appId}`).value;
     
-    apps[index].status = status;
-    apps[index].adminNote = noteInput ? noteInput.value : "";
-    
-    localStorage.setItem('serverApplications', JSON.stringify(apps));
-    
-    loadAdminData(); // تحديث الجدول
-    closeConfirmModal(); // إغلاق النافذة
-    
-    showNotification(`تم ${status === 'مقبول' ? 'قبول' : 'رفض'} الطلب بنجاح`);
+    // تحديث الحالة في Firebase
+    database.ref('serverApplications/' + appId).update({
+        status: status,
+        adminNote: note
+    }).then(() => {
+        showNotification("تم تحديث حالة الطلب بنجاح");
+    });
 }
-
