@@ -9,7 +9,9 @@ const firebaseConfig = {
 };
 
 // تشغيل Firebase
-firebase.initializeApp(firebaseConfig);
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
 const database = firebase.database();
 
 // باقي كودك القديم يبدأ من هنا...
@@ -177,24 +179,21 @@ document.getElementById('job-form').addEventListener('submit', async function(e)
         return;
     }
 
+    // جلب العداد العالمي من Firebase أو تعيينه افتراضياً
+    const counterSnap = await database.ref('global_app_counter').get();
+    let currentCounter = counterSnap.exists() ? counterSnap.val() : 200;
+    const newAppId = `PLUS-${currentCounter}`;
 
-let currentCounter = parseInt(localStorage.getItem('global_app_counter')) || 200;
-
-
-const newAppId = `PLUS-${currentCounter}`; 
-
-localStorage.setItem('global_app_counter', currentCounter + 1);
-
-const jobTitle = getJobTitle(jobType);
+    const jobTitle = getJobTitle(jobType);
     const webhookUrl = jobConfig[jobType].webhook;
 
-    const data = {
+    const discordData = {
         embeds: [{
             title: `تقديم جديد - ${jobTitle}`,
             description: `**رقم الطلب:** \`${newAppId}\``, 
             color: 0xfc7823,
             fields: [
-                { name: "Name - ألاسم", value: characterName, inline: false },
+                { name: "Name - الأسم", value: characterName, inline: false },
                 { name: "Steam - ستيم", value: characterId, inline: false },
                 { name: "Discord ID - أيدي الديسكورد", value: `<@${discordUser}>`, inline: false },
                 { name: "Time - الوقت المتاح", value: phoneNumber, inline: false },
@@ -210,27 +209,44 @@ const jobTitle = getJobTitle(jobType);
         submitBtn.innerText = "جاري الإرسال...";
         submitBtn.disabled = true;
 
-        const response = await fetch(webhookUrl, {
+        // 1. الإرسال لديسكورد
+        await fetch(webhookUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+            body: JSON.stringify(discordData)
         });
 
-        if (response.ok) {
-            showNotification(`✅ تم الإرسال بنجاح! رقمك هو: ${newAppId}`);
-            saveToAdminDashboard(characterName, jobTitle, reason, discordUser, newAppId); 
-            closeModal();
-            this.reset();
-            if (typeof loadUserTrackingData === "function") loadUserTrackingData();
-        }
+        // 2. الحفظ في Firebase
+        const newApp = {
+            appId: newAppId,
+            name: characterName,
+            job: jobTitle,
+            date: new Date().toLocaleDateString('ar-EG'),
+            status: "معلق",
+            reason: reason,
+            discordId: discordUser,
+            adminNote: ""
+        };
+
+        await database.ref('serverApplications').push(newApp);
+        
+        // 3. تحديث العداد
+        await database.ref('global_app_counter').set(currentCounter + 1);
+
+        showNotification(`✅ تم الإرسال بنجاح! رقمك هو: ${newAppId}`);
+        closeModal();
+        this.reset();
+        
     } catch (error) {
-        showNotification('❌ حدث خطأ في الاتصال بالديسكورد', true);
+        console.error(error);
+        showNotification('❌ حدث خطأ في النظام', true);
     } finally {
         const submitBtn = this.querySelector('button[type="submit"]');
         submitBtn.innerText = "إرسال الطلب";
         submitBtn.disabled = false;
     }
 });
+
 
 function saveToAdminDashboard(name, job, reason, discordId, appId) {
     const newApp = {
@@ -699,33 +715,45 @@ const mockJobs = [
 function loadUserTrackingData() {
     const savedUser = JSON.parse(localStorage.getItem('user'));
     const listContainer = document.getElementById('applications-list');
+    const noAppMsg = document.getElementById('no-app-message');
 
     if (!savedUser || !listContainer) return;
 
-    // جلب البيانات من Firebase وتصفيتها للمستخدم الحالي
     database.ref('serverApplications').on('value', (snapshot) => {
         const data = snapshot.val();
-        const myApps = data ? Object.values(data).filter(a => a.discordId === savedUser.id).reverse() : [];
-        
         listContainer.innerHTML = ''; 
-        if (myApps.length === 0) {
-            document.getElementById('no-app-message').style.display = 'block';
+
+        if (!data) {
+            if (noAppMsg) noAppMsg.style.display = 'block';
             return;
         }
 
-        document.getElementById('no-app-message').style.display = 'none';
-        myApps.forEach(app => {
-            const statusClass = app.status === 'مقبول' ? 'status-approved' : app.status === 'رفض' ? 'status-rejected' : 'status-pending';
-            listContainer.innerHTML += `
-                <div class="status-box ${statusClass}">
-                    <div class="status-row"><span>رقم الطلب:</span><strong>${app.appId}</strong></div>
-                    <div class="status-row"><span>الوظيفة:</span><strong>${app.job}</strong></div>
-                    <div class="status-row"><span>الحالة:</span><span class="status-badge ${statusClass}">${app.status}</span></div>
-                    ${app.adminNote ? `<div class="admin-note"><span>ملاحظة:</span><p>${app.adminNote}</p></div>` : ''}
-                </div>`;
-        });
+        const myApps = Object.values(data)
+            .filter(app => app.discordId === savedUser.id)
+            .reverse();
+
+        if (myApps.length === 0) {
+            if (noAppMsg) noAppMsg.style.display = 'block';
+        } else {
+            if (noAppMsg) noAppMsg.style.display = 'none';
+            myApps.forEach(app => {
+                const statusClass = app.status === 'مقبول' ? 'status-approved' : app.status === 'رفض' ? 'status-rejected' : 'status-pending';
+                listContainer.innerHTML += `
+                    <div class="status-box ${statusClass}">
+                        <div class="status-row"><span>رقم الطلب:</span><strong>${app.appId}</strong></div>
+                        <div class="status-row"><span>الوظيفة:</span><strong>${app.job}</strong></div>
+                        <div class="status-row"><span>الحالة:</span><span class="status-badge ${statusClass}">${app.status}</span></div>
+                        <div class="admin-notes-section">
+                            <span class="admin-notes-title">ملاحظات الإدارة:</span>
+                            <p style="margin: 0; font-size: 0.85rem; color: #ccc;">${app.adminNote || 'لا توجد ملاحظات حالياً.'}</p>
+                        </div>
+                    </div>`;
+            });
+        }
     });
 }
+
+
 function submitDecision(index, status) {
     const statusText = status === 'مقبول' ? 'قبول' : 'رفض';
     const icon = status === 'مقبول' ? 'fa-check-circle' : 'fa-circle-xmark';
