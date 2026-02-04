@@ -1,4 +1,3 @@
-
 const firebaseConfig = {
   apiKey: "AIzaSyAv3pd6c79-p3rwINbSBRx78lpLlgpxVao",
   authDomain: "planning-with-ai-60a3c.firebaseapp.com",
@@ -245,8 +244,8 @@ function saveToAdminDashboard(name, job, reason, discordId, appId) {
         adminNote: ""
     };
 
-    // الحفظ في Firebase بدلاً من localStorage
-    database.ref('serverApplications/' + appId).set(newApp);
+    // حفظ في Firebase بدل localStorage
+    database.ref('serverApplications').push(newApp);
 }
 
 function getJobTitle(jobType) {
@@ -697,51 +696,36 @@ const mockJobs = [
     { name: "Mshari_X", job: "الميكانيكي", date: "2024/05/18", status: "معلق" }
 ];
 
-function loadAdminData() {
-    const tableBody = document.getElementById('jobs-table-body');
-    if (!tableBody) return;
+function loadUserTrackingData() {
+    const savedUser = JSON.parse(localStorage.getItem('user'));
+    const listContainer = document.getElementById('applications-list');
 
-    // القراءة من Firebase مباشرة
+    if (!savedUser || !listContainer) return;
+
+    // جلب البيانات من Firebase وتصفيتها للمستخدم الحالي
     database.ref('serverApplications').on('value', (snapshot) => {
-        const appsData = snapshot.val();
-        const apps = appsData ? Object.values(appsData) : [];
+        const data = snapshot.val();
+        const myApps = data ? Object.values(data).filter(a => a.discordId === savedUser.id).reverse() : [];
         
-        // تحديث الإحصائيات
-        if(document.getElementById('total-apps')) document.getElementById('total-apps').textContent = apps.length;
-        if(document.getElementById('approved-apps')) document.getElementById('approved-apps').textContent = apps.filter(a => a.status === 'مقبول').length;
-        if(document.getElementById('rejected-apps')) document.getElementById('rejected-apps').textContent = apps.filter(a => a.status === 'رفض').length;
-
-        tableBody.innerHTML = ""; 
-
-        if (apps.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="6" class="empty-msg">لا توجد طلبات تقديم حالياً</td></tr>`;
+        listContainer.innerHTML = ''; 
+        if (myApps.length === 0) {
+            document.getElementById('no-app-message').style.display = 'block';
             return;
         }
 
-        // عرض التذاكر (الأحدث أولاً)
-        apps.reverse().forEach((app) => {
-            const statusClass = app.status === 'مقبول' ? 'status-approved' : (app.status === 'رفض' ? 'status-rejected' : 'status-pending');
-            
-            tableBody.innerHTML += `
-                <tr>
-                    <td class="app-id-cell">${app.appId}</td>
-                    <td class="user-name">${app.name}</td>
-                    <td class="job-type">${app.job}</td>
-                    <td>
-                        <textarea id="admin-note-${app.appId}" class="admin-textarea" placeholder="أضف ملاحظة...">${app.adminNote || ''}</textarea>
-                    </td>
-                    <td><span class="status-tag ${statusClass}">${app.status}</span></td>
-                    <td>
-                        <div class="action-group">
-                            <button class="action-btn btn-accept" onclick="executeDecision('${app.appId}', 'مقبول')"><i class="fa-solid fa-check"></i></button>
-                            <button class="action-btn btn-decline" onclick="executeDecision('${app.appId}', 'رفض')"><i class="fa-solid fa-xmark"></i></button>
-                        </div>
-                    </td>
-                </tr>`;
+        document.getElementById('no-app-message').style.display = 'none';
+        myApps.forEach(app => {
+            const statusClass = app.status === 'مقبول' ? 'status-approved' : app.status === 'رفض' ? 'status-rejected' : 'status-pending';
+            listContainer.innerHTML += `
+                <div class="status-box ${statusClass}">
+                    <div class="status-row"><span>رقم الطلب:</span><strong>${app.appId}</strong></div>
+                    <div class="status-row"><span>الوظيفة:</span><strong>${app.job}</strong></div>
+                    <div class="status-row"><span>الحالة:</span><span class="status-badge ${statusClass}">${app.status}</span></div>
+                    ${app.adminNote ? `<div class="admin-note"><span>ملاحظة:</span><p>${app.adminNote}</p></div>` : ''}
+                </div>`;
         });
     });
 }
-
 function submitDecision(index, status) {
     const statusText = status === 'مقبول' ? 'قبول' : 'رفض';
     const icon = status === 'مقبول' ? 'fa-check-circle' : 'fa-circle-xmark';
@@ -986,14 +970,18 @@ function logoutUser() {
     );
 }
 
-function executeDecision(appId, status) {
-    const note = document.getElementById(`admin-note-${appId}`).value;
+function executeDecision(index, status) {
+    let apps = JSON.parse(localStorage.getItem('serverApplications')) || [];
+    const noteInput = document.getElementById(`admin-note-${index}`);
     
-    // تحديث الحالة في Firebase
-    database.ref('serverApplications/' + appId).update({
-        status: status,
-        adminNote: note
-    }).then(() => {
-        showNotification("تم تحديث حالة الطلب بنجاح");
-    });
+    apps[index].status = status;
+    apps[index].adminNote = noteInput ? noteInput.value : "";
+    
+    localStorage.setItem('serverApplications', JSON.stringify(apps));
+    
+    loadAdminData(); // تحديث الجدول
+    closeConfirmModal(); // إغلاق النافذة
+    
+    showNotification(`تم ${status === 'مقبول' ? 'قبول' : 'رفض'} الطلب بنجاح`);
 }
+
