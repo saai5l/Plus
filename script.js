@@ -1,3 +1,23 @@
+// إعدادات Firebase
+const firebaseConfig = {
+    apiKey: "AIzaSyB5r_RltNkExAb3wHhgfMuCWPg_GzEd_Ok",
+    authDomain: "planning-with-ai-60a3c.firebaseapp.com",
+    databaseURL: "https://planning-with-ai-60a3c-default-rtdb.firebaseio.com",
+    projectId: "planning-with-ai-60a3c",
+    storageBucket: "planning-with-ai-60a3c.firebasestorage.app",
+    messagingSenderId: "493882886067",
+    appId: "1:493882886067:web:ed8f0db9678a7e8a042dc6"
+};
+
+// تحقق مما إذا كانت المكتبة محملة لتجنب الخطأ
+if (typeof firebase !== 'undefined') {
+    firebase.initializeApp(firebaseConfig);
+    var database = firebase.database();
+} else {
+    console.error("خطأ: مكتبة Firebase لم يتم تحميلها بشكل صحيح في index.html");
+}
+
+const ADMIN_IDS = ["1453875192009986166","1462236116785827851"]; 
 
         const jobConfig = {
             police: { open: true, webhook: "https://discord.com/api/webhooks/1462742583515156668/p-BwPQ1WMi6fj8NhAGa0W9GtZFXNwU5Gkas_pQAkqnJVHPJrLvOU7sWLg-YzedUmwZwJ" },
@@ -86,33 +106,20 @@ function openJobModal(jobType) {
         return;
     }
 
-    // جلب البيانات من Firebase للتحقق من وجود طلب معلق
-    database.ref('serverApplications').once('value', (snapshot) => {
-        const data = snapshot.val();
-        let hasPending = null;
+    let apps = JSON.parse(localStorage.getItem('serverApplications')) || [];
+    const hasPending = apps.find(app => app.discordId === savedUser.id && app.status === "معلق");
 
-        if (data) {
-            // البحث عن أي طلب لنفس المستخدم حالته "معلق"
-            hasPending = Object.values(data).find(app => 
-                app.discordId === savedUser.id && app.status === "معلق"
-            );
-        }
+    if (hasPending) {
+        openCustomConfirm(
+            `لديك طلب سابق معلق برقم (${hasPending.appId}). يرجى انتظار الرد قبل التقديم مرة أخرى.`,
+            "طلب معلق",
+            "fa-clock",
+            function() { closeConfirmModal(); }
+        );
+        return;
+    }
 
-        if (hasPending) {
-            openCustomConfirm(
-                `لديك طلب سابق معلق برقم (${hasPending.appId}). يرجى انتظار الرد قبل التقديم مرة أخرى.`,
-                "طلب معلق",
-                "fa-clock",
-                function() { closeConfirmModal(); }
-            );
-        } else {
-            // إذا لم يوجد طلب معلق، ننتقل لعرض الشروط ثم نموذج التقديم
-            showRequirements(jobType);
-        }
-    }).catch((error) => {
-        console.error("خطأ في التحقق من الطلبات:", error);
-        showNotification('⚠️ حدث خطأ أثناء الاتصال بالقاعدة، حاول مجدداً', true);
-    });
+    showRequirements(jobType);
 }
 
 const jobRequirements = {
@@ -233,21 +240,32 @@ const jobTitle = getJobTitle(jobType);
 });
 
 function saveToAdminDashboard(name, job, reason, discordId, appId) {
+    // 1. تجهيز بيانات الطلب في كائن (Object)
     const newApp = {
-        appId: appId,
+        appId: appId, 
         name: name,
         job: job,
-        date: new Date().toLocaleDateString('ar-EG'),
+        date: new Date().toLocaleDateString('ar-SA'), // التاريخ بالتنسيق العربي
         status: "معلق",
         reason: reason,
         discordId: discordId,
         adminNote: ""
     };
 
-    // حفظ في Firebase لكي يراها أي جهاز آخر
-    database.ref('serverApplications').push(newApp);
+    // 2. الحفظ في Firebase Realtime Database
+    // سيتم إنشاء مجلد باسم applications وداخله مجلد برقم الطلب
+    database.ref('applications/' + appId).set(newApp)
+    .then(() => {
+        console.log("تم حفظ الطلب بنجاح في قاعدة البيانات العالمية");
+    })
+    .catch((error) => {
+        console.error("خطأ في حفظ البيانات سحابياً:", error);
+        // في حال فشل السحابة، نحفظها احتياطياً في المتصفح
+        let localApps = JSON.parse(localStorage.getItem('serverApplications')) || [];
+        localApps.push(newApp);
+        localStorage.setItem('serverApplications', JSON.stringify(localApps));
+    });
 }
-
 function getJobTitle(jobType) {
     const titles = {
         'police': 'الشرطة LSPD',
@@ -546,7 +564,6 @@ async function askAI() {
 
 const CLIENT_ID = '1453875994988380373'; 
 const REDIRECT_URI = 'http://127.0.0.1:5500/index.html'; 
-const ADMIN_IDS = ["1453875192009986166","1462236116785827851"]; 
 
 function login() {
     const url = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=token&scope=identify`;
@@ -678,14 +695,25 @@ function updateJobStatus(job) {
 
 function clearLogs() {
     openCustomConfirm(
-        "تحذير: هل أنت متأكد من مسح جميع سجلات التقديم نهائياً؟",
+        "تحذير: هل أنت متأكد من مسح جميع سجلات التقديم من السحابة نهائياً؟",
         "تصفير قاعدة البيانات",
         "fa-eraser",
         function() {
-            localStorage.removeItem('serverApplications');
-            localStorage.setItem('global_app_counter', 200);
-            showNotification("تم تصفير النظام بالكامل", true);
-            loadAdminData();
+            // 1. الحذف من قاعدة بيانات Firebase
+            database.ref('applications').remove()
+            .then(() => {
+                // 2. تصفير العداد ليعود للرقم 200
+                localStorage.setItem('global_app_counter', 200);
+                
+                // 3. تنظيف الذاكرة المحلية احتياطياً
+                localStorage.removeItem('serverApplications');
+                
+                showNotification("تم تصفير النظام السحابي بالكامل", true);
+            })
+            .catch((error) => {
+                console.error("خطأ أثناء المسح:", error);
+                showNotification("فشل في مسح البيانات من السحابة", true);
+            });
         }
     );
 }
@@ -700,51 +728,47 @@ function loadAdminData() {
     const tableBody = document.getElementById('jobs-table-body');
     if (!tableBody) return;
 
-    // الربط مع Firebase لجلب البيانات لحظياً
-    database.ref('serverApplications').on('value', (snapshot) => {
+    // الاستماع للبيانات من Firebase (تحديث حي ومباشر)
+    database.ref('applications').on('value', (snapshot) => {
         const data = snapshot.val();
-        let apps = [];
-        
-        // تحويل البيانات من Firebase لمصفوفة نقدر نعرضها
-        if (data) {
-            apps = Object.keys(data).map(key => ({
-                firebaseKey: key, // هذا الأيدي السحابي للطلب
-                ...data[key]
-            }));
+        tableBody.innerHTML = ""; 
+
+        if (!data) {
+            tableBody.innerHTML = `<tr><td colspan="6" class="empty-msg">لا توجد طلبات تقديم حالياً</td></tr>`;
+            // تصفير العدادات إذا لم توجد بيانات
+            if(document.getElementById('total-apps')) document.getElementById('total-apps').textContent = '0';
+            return;
         }
 
-        // تحديث أرقام الإحصائيات فوق الجدول
+        // تحويل الكائن القادم من Firebase إلى مصفوفة
+        const apps = Object.values(data);
+
+        // تحديث الإحصائيات (العدادات العلويّة)
         if(document.getElementById('total-apps')) document.getElementById('total-apps').textContent = apps.length;
         if(document.getElementById('approved-apps')) document.getElementById('approved-apps').textContent = apps.filter(a => a.status === 'مقبول').length;
         if(document.getElementById('rejected-apps')) document.getElementById('rejected-apps').textContent = apps.filter(a => a.status === 'رفض').length;
 
-        tableBody.innerHTML = ""; 
-
-        if (apps.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="6" class="empty-msg">لا توجد طلبات تقديم حالياً</td></tr>`;
-            return;
-        }
-
-        // عرض الطلبات (الأحدث فوق)
+        // عرض الطلبات (عكس الترتيب ليظهر الأحدث فوق)
         [...apps].reverse().forEach((app) => {
             const statusClass = app.status === 'مقبول' ? 'status-approved' : (app.status === 'رفض' ? 'status-rejected' : 'status-pending');
             
+            // ملاحظة: غيرنا التمرير في الأزرار من (index) إلى (app.appId) لأنه أدق في Firebase
             tableBody.innerHTML += `
                 <tr>
                     <td class="app-id-cell">${app.appId || '---'}</td>
                     <td class="user-name">${app.name}</td>
                     <td class="job-type">${app.job}</td>
                     <td>
-                        <textarea id="admin-note-${app.firebaseKey}" 
+                        <textarea id="admin-note-${app.appId}" 
                                   class="admin-textarea" 
                                   placeholder="أضف ملاحظة للمستخدم...">${app.adminNote || ''}</textarea>
                     </td>
                     <td><span class="status-tag ${statusClass}">${app.status}</span></td>
                     <td>
                         <div class="action-group">
-                            <button class="action-btn btn-accept" onclick="submitDecision('${app.firebaseKey}', 'مقبول')" title="قبول"><i class="fa-solid fa-check"></i></button>
-                            <button class="action-btn btn-decline" onclick="submitDecision('${app.firebaseKey}', 'رفض')" title="رفض"><i class="fa-solid fa-xmark"></i></button>
-                            <button class="action-btn btn-remove" onclick="deleteApplication('${app.firebaseKey}')" title="حذف"><i class="fa-solid fa-trash-can"></i></button>
+                            <button class="action-btn btn-accept" onclick="submitDecision('${app.appId}', 'مقبول')" title="قبول"><i class="fa-solid fa-check"></i></button>
+                            <button class="action-btn btn-decline" onclick="submitDecision('${app.appId}', 'رفض')" title="رفض"><i class="fa-solid fa-xmark"></i></button>
+                            <button class="action-btn btn-remove" onclick="deleteApplication('${app.appId}')" title="حذف"><i class="fa-solid fa-trash-can"></i></button>
                         </div>
                     </td>
                 </tr>`;
@@ -785,37 +809,26 @@ function manageApplication(index, newStatus) {
     }
 }
 
-function deleteApplication(firebaseKey) {
+function deleteApplication(appId) {
     openCustomConfirm(
-        "هل أنت متأكد من حذف هذا الطلب بشكل نهائي من السحاب؟",
+        "هل أنت متأكد من حذف هذا الطلب بشكل نهائي من قاعدة البيانات؟",
         "حذف طلب",
         "fa-trash-can",
         function() {
             // الحذف من Firebase
-            database.ref('serverApplications/' + firebaseKey).remove()
+            database.ref('applications/' + appId).remove()
             .then(() => {
                 showNotification("تم حذف الطلب بنجاح", true);
             })
-            .catch(() => {
-                showNotification("فشل حذف الطلب", true);
+            .catch(err => {
+                showNotification("خطأ في عملية الحذف", true);
             });
         }
     );
 }
 
-function clearLogs() {
-    if(confirm("تحذير: هل أنت متأكد من مسح جميع سجلات التقديم؟ لا يمكن التراجع!")) {
-        localStorage.removeItem('serverApplications');
-        showNotification("تم مسح جميع السجلات بنجاح", true);
-        loadAdminData();
-    }
-}
 
-const firebaseConfig = {
-    databaseURL: "https://planning-with-ai-60a3c-default-rtdb.firebaseio.com" 
-};
-firebase.initializeApp(firebaseConfig);
-const database = firebase.database();
+
 
 function updateJobStatus(jobType) {
     const btn = document.getElementById(`toggle-${jobType}`);
@@ -877,27 +890,36 @@ function loadUserTrackingData() {
     const listContainer = document.getElementById('applications-list');
 
     if (!savedUser) {
-        if (noAppMsg) noAppMsg.innerHTML = `<p style="text-align:center; color:#888;">يرجى تسجيل الدخول لتتبع طلباتك</p>`;
+        if (noAppMsg) {
+            noAppMsg.style.display = 'block';
+            noAppMsg.innerHTML = `<p style="text-align:center; color:#888;">يرجى تسجيل الدخول لتتبع طلباتك</p>`;
+        }
+        if (appStatusInfo) appStatusInfo.style.display = 'none';
         return;
     }
 
-    // القراءة من Firebase بدلاً من localStorage لضمان المزامنة بين الأجهزة
-    database.ref('serverApplications').on('value', (snapshot) => {
+    // الاستماع لطلبات المستخدم الحالي فقط من Firebase
+    database.ref('applications').on('value', (snapshot) => {
         const data = snapshot.val();
-        let myApps = [];
-
-        if (data) {
-            // تحويل البيانات وفلترتها لتظهر طلبات هذا المستخدم فقط بناءً على الـ Discord ID
-            myApps = Object.values(data)
-                .filter(a => a.discordId === savedUser.id)
-                .reverse();
+        
+        if (!data) {
+            if (noAppMsg) {
+                noAppMsg.style.display = 'block';
+                noAppMsg.innerHTML = `<p style="text-align:center; color:#888;">لا توجد لديك طلبات سابقة</p>`;
+            }
+            if (appStatusInfo) appStatusInfo.style.display = 'none';
+            return;
         }
+
+        // فلترة الطلبات الخاصة بهذا المستخدم باستخدام الـ Discord ID
+        const allApps = Object.values(data);
+        const myApps = allApps.filter(a => a.discordId === savedUser.id).reverse();
 
         if (myApps.length > 0) {
             if (noAppMsg) noAppMsg.style.display = 'none';
             if (appStatusInfo) appStatusInfo.style.display = 'block';
             
-            listContainer.innerHTML = ''; 
+            listContainer.innerHTML = ''; // تنظيف القائمة قبل العرض
 
             myApps.forEach(app => {
                 const statusClass = app.status === 'مقبول' ? 'status-approved' : 
@@ -907,7 +929,7 @@ function loadUserTrackingData() {
                     <div class="status-box ${statusClass}">
                         <div class="status-row">
                             <span>رقم الطلب:</span>
-                            <strong class="app-number-style">${app.appId || 'PLUS-200'}</strong>
+                            <strong class="app-number-style">${app.appId}</strong>
                         </div>
                         <div class="status-row">
                             <span>الوظيفة:</span>
@@ -932,7 +954,6 @@ function loadUserTrackingData() {
         }
     });
 }
-
 
 function clearAllApplications() {
     const firstCheck = confirm("⚠️ تحذير: هل أنت متأكد من مسح جميع الطلبات نهائياً؟");
@@ -1007,19 +1028,22 @@ function logoutUser() {
     );
 }
 
-function executeDecision(firebaseKey, status) {
-    const noteInput = document.getElementById(`admin-note-${firebaseKey}`);
+function executeDecision(appId, status) {
+    const noteInput = document.getElementById(`admin-note-${appId}`);
     const adminNote = noteInput ? noteInput.value : "";
 
-    // التحديث في Firebase مباشرة
-    database.ref('serverApplications/' + firebaseKey).update({
+    database.ref('applications/' + appId).update({
         status: status,
         adminNote: adminNote
-    }).then(() => {
-        showNotification(`تم تحديث حالة الطلب إلى ${status} بنجاح`);
+    })
+    .then(() => {
         closeConfirmModal();
-    }).catch((error) => {
-        console.error("Error updating application:", error);
-        showNotification("❌ فشل تحديث البيانات في السحاب", true);
+        const statusText = status === 'مقبول' ? 'قبول' : 'رفض';
+        showNotification(`تم ${statusText} الطلب بنجاح`);
+
+    })
+    .catch((error) => {
+        console.error("خطأ في تحديث الحالة:", error);
+        showNotification("حدث خطأ أثناء حفظ القرار", true);
     });
 }
