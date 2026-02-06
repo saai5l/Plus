@@ -79,7 +79,18 @@ function showPage(pageId) {
         });
         
 function openJobModal(jobType) {
-    const savedUser = JSON.parse(localStorage.getItem('user'));
+    firebase.database().ref('applications').once('value', snapshot => {
+    const apps = Object.values(snapshot.val() || {});
+    const hasPending = apps.find(a => a.discordId === savedUser.id && a.status === "معلق");
+
+    if (hasPending) {
+        showNotification(`عندك طلب معلق برقم ${hasPending.appId}`, true);
+        return;
+    }
+
+    showRequirements(jobType);
+});
+
     
     if (!savedUser) {
         showNotification('⚠️ يرجى تسجيل الدخول عبر ديسكورد أولاً', true);
@@ -165,12 +176,16 @@ document.getElementById('job-form').addEventListener('submit', async function(e)
     }
 
 
-let currentCounter = parseInt(localStorage.getItem('global_app_counter')) || 200;
+async function getNextAppId() {
+    const ref = firebase.database().ref('system/appCounter');
+    const snap = await ref.once('value');
+    let counter = snap.val() || 200;
+    await ref.set(counter + 1);
+    return `PLUS-${counter}`;
+}
 
+const newAppId = await getNextAppId();
 
-const newAppId = `PLUS-${currentCounter}`; 
-
-localStorage.setItem('global_app_counter', currentCounter + 1);
 
 const jobTitle = getJobTitle(jobType);
     const webhookUrl = jobConfig[jobType].webhook;
@@ -220,26 +235,20 @@ const jobTitle = getJobTitle(jobType);
 });
 
 function saveToAdminDashboard(name, job, reason, discordId, appId) {
-    // البيانات التي سيتم حفظها
     const newApp = {
-        appId: appId,
-        name: name,
-        job: job,
+        appId,
+        name,
+        job,
         date: new Date().toLocaleDateString('ar-EG'),
         status: "معلق",
-        reason: reason,
-        discordId: discordId,
+        reason,
+        discordId,
         adminNote: ""
     };
 
-    database.ref('serverApplications').push(newApp)
-    .then(() => {
-        console.log("تم حفظ الطلب في قاعدة البيانات السحابية");
-    })
-    .catch((error) => {
-        console.error("خطأ في الحفظ:", error);
-    });
+    firebase.database().ref('applications/' + appId).set(newApp);
 }
+
 
 function getJobTitle(jobType) {
     const titles = {
@@ -690,60 +699,44 @@ const mockJobs = [
 ];
 
 function loadAdminData() {
-    const tableBody = document.getElementById('jobs-table-body');
-    if (!tableBody) return;
+    firebase.database().ref('applications').on('value', snapshot => {
+        const appsObj = snapshot.val() || {};
+        const apps = Object.values(appsObj);
 
-    // استبدال القراءة من المتصفح بالقراءة من Firebase
-    database.ref('serverApplications').on('value', (snapshot) => {
-        const data = snapshot.val();
-        let apps = [];
-        
-        // تحويل الكائنات القادمة من Firebase إلى مصفوفة قابلة للعرض
-        if (data) {
-            apps = Object.keys(data).map(key => ({
-                firebaseKey: key, // هذا المعرف مهم جداً للتعامل مع الطلب لاحقاً
-                ...data[key]
-            }));
-        }
+        document.getElementById('total-apps').textContent = apps.length;
+        document.getElementById('approved-apps').textContent = apps.filter(a => a.status==='مقبول').length;
+        document.getElementById('rejected-apps').textContent = apps.filter(a => a.status==='رفض').length;
 
-        // تحديث عدادات الإحصائيات بناءً على البيانات السحابية
-        if(document.getElementById('total-apps')) document.getElementById('total-apps').textContent = apps.length;
-        if(document.getElementById('approved-apps')) document.getElementById('approved-apps').textContent = apps.filter(a => a.status === 'مقبول').length;
-        if(document.getElementById('rejected-apps')) document.getElementById('rejected-apps').textContent = apps.filter(a => a.status === 'رفض').length;
-
-        tableBody.innerHTML = ""; 
+        const tableBody = document.getElementById('jobs-table-body');
+        tableBody.innerHTML = "";
 
         if (apps.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="6" class="empty-msg">لا توجد طلبات تقديم حالياً</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="6" class="empty-msg">لا توجد طلبات</td></tr>`;
             return;
         }
 
-        // عرض الطلبات بحيث يظهر الأحدث في الأعلى
-        [...apps].reverse().forEach((app) => {
-            const statusClass = app.status === 'مقبول' ? 'status-approved' : (app.status === 'رفض' ? 'status-rejected' : 'status-pending');
-            
+        apps.reverse().forEach(app => {
+            const statusClass = app.status === 'مقبول' ? 'status-approved' :
+                               app.status === 'رفض' ? 'status-rejected' : 'status-pending';
+
             tableBody.innerHTML += `
-                <tr>
-                    <td class="app-id-cell">${app.appId || '---'}</td>
-                    <td class="user-name">${app.name}</td>
-                    <td class="job-type">${app.job}</td>
-                    <td>
-                        <textarea id="admin-note-${app.firebaseKey}" 
-                                  class="admin-textarea" 
-                                  placeholder="أضف ملاحظة للمستخدم...">${app.adminNote || ''}</textarea>
-                    </td>
-                    <td><span class="status-tag ${statusClass}">${app.status}</span></td>
-                    <td>
-                        <div class="action-group">
-                            <button class="action-btn btn-accept" onclick="submitDecision('${app.firebaseKey}', 'مقبول')" title="قبول"><i class="fa-solid fa-check"></i></button>
-                            <button class="action-btn btn-decline" onclick="submitDecision('${app.firebaseKey}', 'رفض')" title="رفض"><i class="fa-solid fa-xmark"></i></button>
-                            <button class="action-btn btn-remove" onclick="deleteApplication('${app.firebaseKey}')" title="حذف"><i class="fa-solid fa-trash-can"></i></button>
-                        </div>
-                    </td>
-                </tr>`;
+            <tr>
+                <td>${app.appId}</td>
+                <td>${app.name}</td>
+                <td>${app.job}</td>
+                <td><textarea id="note-${app.appId}">${app.adminNote || ''}</textarea></td>
+                <td><span class="status-tag ${statusClass}">${app.status}</span></td>
+                <td>
+                    <button onclick="executeDecision('${app.appId}','مقبول')">✔</button>
+                    <button onclick="executeDecision('${app.appId}','رفض')">✖</button>
+                    <button onclick="deleteApplication('${app.appId}')">🗑</button>
+                </td>
+            </tr>`;
         });
     });
 }
+
+
 function submitDecision(index, status) {
     const statusText = status === 'مقبول' ? 'قبول' : 'رفض';
     const icon = status === 'مقبول' ? 'fa-check-circle' : 'fa-circle-xmark';
@@ -777,26 +770,11 @@ function manageApplication(index, newStatus) {
     }
 }
 
-function deleteApplication(index) {
-    openCustomConfirm(
-        "هل أنت متأكد من حذف هذا الطلب بشكل نهائي؟",
-        "حذف طلب",
-        "fa-trash-can",
-        function() {
-            // الكود الذي سينفذ فقط عند الضغط على "تأكيد"
-            let apps = JSON.parse(localStorage.getItem('serverApplications')) || [];
-            apps.splice(index, 1);
-            localStorage.setItem('serverApplications', JSON.stringify(apps));
-            
-            // إظهار تنبيه ناعم (Toast)
-            if (typeof showNotification === "function") {
-                showNotification("تم حذف الطلب بنجاح", true);
-            }
-            
-            loadAdminData(); // إعادة تحديث الجدول
-        }
-    );
+function deleteApplication(appId) {
+    firebase.database().ref('applications/' + appId).remove();
+    showNotification("تم حذف الطلب");
 }
+
 
 function clearLogs() {
     if(confirm("تحذير: هل أنت متأكد من مسح جميع سجلات التقديم؟ لا يمكن التراجع!")) {
@@ -867,55 +845,25 @@ database.ref('jobStatus').on('value', (snapshot) => {
 
 function loadUserTrackingData() {
     const savedUser = JSON.parse(localStorage.getItem('user'));
-    const noAppMsg = document.getElementById('no-app-message');
-    const appStatusInfo = document.getElementById('app-status-info');
-    const listContainer = document.getElementById('applications-list');
+    if (!savedUser) return;
 
-    if (!savedUser) {
-        if (noAppMsg) noAppMsg.innerHTML = `<p style="text-align:center; color:#888;">يرجى تسجيل الدخول لتتبع طلباتك</p>`;
-        return;
-    }
+    firebase.database().ref('applications').on('value', snapshot => {
+        const apps = Object.values(snapshot.val() || {});
+        const myApps = apps.filter(a => a.discordId === savedUser.id);
 
-    let apps = JSON.parse(localStorage.getItem('serverApplications')) || [];
-    const myApps = apps.filter(a => a.discordId === savedUser.id).reverse();
+        const listContainer = document.getElementById('applications-list');
+        listContainer.innerHTML = "";
 
-    if (myApps.length > 0) {
-        if (noAppMsg) noAppMsg.style.display = 'none';
-        if (appStatusInfo) appStatusInfo.style.display = 'block';
-        
-        listContainer.innerHTML = ''; // تنظيف القائمة
-
-        myApps.forEach(app => {
-            const statusClass = app.status === 'مقبول' ? 'status-approved' : 
+        myApps.reverse().forEach(app => {
+            const statusClass = app.status === 'مقبول' ? 'status-approved' :
                                app.status === 'رفض' ? 'status-rejected' : 'status-pending';
-            
+
             listContainer.innerHTML += `
-                <div class="status-box ${statusClass}">
-                    <div class="status-row">
-                        <span>رقم الطلب:</span>
-                        <strong class="app-number-style">${app.appId || 'PLUS-200'}</strong>
-                    </div>
-                    <div class="status-row">
-                        <span>الوظيفة:</span>
-                        <strong>${app.job}</strong>
-                    </div>
-                    <div class="status-row">
-                        <span>الحالة:</span>
-                        <span class="status-badge ${statusClass}">${app.status}</span>
-                    </div>
-                    <div class="admin-notes-section">
-                        <span class="admin-notes-title">ملاحظات الإدارة:</span>
-                        <p style="margin: 0; font-size: 0.85rem; color: #ccc;">${app.adminNote || 'لا توجد ملاحظات حالياً.'}</p>
-                    </div>
-                </div>`;
+            <div class="status-box ${statusClass}">
+                <strong>${app.appId}</strong> — ${app.job} — ${app.status}
+            </div>`;
         });
-    } else {
-        if (noAppMsg) {
-            noAppMsg.style.display = 'block';
-            noAppMsg.innerHTML = `<p style="text-align:center; color:#888;">لا توجد لديك طلبات سابقة</p>`;
-        }
-        if (appStatusInfo) appStatusInfo.style.display = 'none';
-    }
+    });
 }
 
 
@@ -992,15 +940,13 @@ function logoutUser() {
     );
 }
 
-function executeDecision(firebaseKey, status) {
-    const noteInput = document.getElementById(`admin-note-${firebaseKey}`);
-    const note = noteInput ? noteInput.value : "";
+function executeDecision(appId, status) {
+    const note = document.getElementById(`note-${appId}`).value || "";
 
-    // تحديث الطلب في Firebase
-    database.ref('serverApplications/' + firebaseKey).update({
+    firebase.database().ref('applications/' + appId).update({
         status: status,
         adminNote: note
-    }).then(() => {
-        showNotification(`تم ${status} الطلب بنجاح`);
     });
+
+    showNotification(`تم تحديث الحالة إلى ${status}`);
 }
