@@ -1,25 +1,10 @@
-const firebaseConfig = {
-  apiKey: "AIzaSyAv3pd6c79-p3rwINbSBRx78lpLlgpxVao",
-  authDomain: "planning-with-ai-60a3c.firebaseapp.com",
-  databaseURL: "https://planning-with-ai-60a3c-default-rtdb.firebaseio.com",
-  projectId: "planning-with-ai-60a3c",
-  storageBucket: "planning-with-ai-60a3c.firebasestorage.app",
-  messagingSenderId: "493882886067",
-  appId: "1:493882886067:web:0d5c3bca278f49b8042dc6"
-};
 
-// تشغيل Firebase
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
-const database = firebase.database();
+        const jobConfig = {
+            police: { open: true, webhook: "https://discord.com/api/webhooks/1462742583515156668/p-BwPQ1WMi6fj8NhAGa0W9GtZFXNwU5Gkas_pQAkqnJVHPJrLvOU7sWLg-YzedUmwZwJ" },
+            ems: { open: true, webhook: "https://discord.com/api/webhooks/1462742583515156668/p-BwPQ1WMi6fj8NhAGa0W9GtZFXNwU5Gkas_pQAkqnJVHPJrLvOU7sWLg-YzedUmwZwJ" },
+            staff: { open: true, webhook: "https://discord.com/api/webhooks/1462742583515156668/p-BwPQ1WMi6fj8NhAGa0W9GtZFXNwU5Gkas_pQAkqnJVHPJrLvOU7sWLg-YzedUmwZwJ" }
+        };
 
-// باقي كودك القديم يبدأ من هنا...
-const jobConfig = {
-    police: { open: true, webhook: "https://discord.com/api/webhooks/1462742583515156668/p-BwPQ1WMi6fj8NhAGa0W9GtZFXNwU5Gkas_pQAkqnJVHPJrLvOU7sWLg-YzedUmwZwJ" },
-    ems: { open: true, webhook: "https://discord.com/api/webhooks/1462742583515156668/p-BwPQ1WMi6fj8NhAGa0W9GtZFXNwU5Gkas_pQAkqnJVHPJrLvOU7sWLg-YzedUmwZwJ" },
-    staff: { open: true, webhook: "https://discord.com/api/webhooks/1462742583515156668/p-BwPQ1WMi6fj8NhAGa0W9GtZFXNwU5Gkas_pQAkqnJVHPJrLvOU7sWLg-YzedUmwZwJ" }
-};
 function showPage(pageId) {
   if (pageId === 'admin-dashboard') {
       const savedUser = JSON.parse(localStorage.getItem('user'));
@@ -179,21 +164,24 @@ document.getElementById('job-form').addEventListener('submit', async function(e)
         return;
     }
 
-    // جلب العداد العالمي من Firebase أو تعيينه افتراضياً
-    const counterSnap = await database.ref('global_app_counter').get();
-    let currentCounter = counterSnap.exists() ? counterSnap.val() : 200;
-    const newAppId = `PLUS-${currentCounter}`;
 
-    const jobTitle = getJobTitle(jobType);
+let currentCounter = parseInt(localStorage.getItem('global_app_counter')) || 200;
+
+
+const newAppId = `PLUS-${currentCounter}`; 
+
+localStorage.setItem('global_app_counter', currentCounter + 1);
+
+const jobTitle = getJobTitle(jobType);
     const webhookUrl = jobConfig[jobType].webhook;
 
-    const discordData = {
+    const data = {
         embeds: [{
             title: `تقديم جديد - ${jobTitle}`,
             description: `**رقم الطلب:** \`${newAppId}\``, 
             color: 0xfc7823,
             fields: [
-                { name: "Name - الأسم", value: characterName, inline: false },
+                { name: "Name - ألاسم", value: characterName, inline: false },
                 { name: "Steam - ستيم", value: characterId, inline: false },
                 { name: "Discord ID - أيدي الديسكورد", value: `<@${discordUser}>`, inline: false },
                 { name: "Time - الوقت المتاح", value: phoneNumber, inline: false },
@@ -209,37 +197,21 @@ document.getElementById('job-form').addEventListener('submit', async function(e)
         submitBtn.innerText = "جاري الإرسال...";
         submitBtn.disabled = true;
 
-        // 1. الإرسال لديسكورد
-        await fetch(webhookUrl, {
+        const response = await fetch(webhookUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(discordData)
+            body: JSON.stringify(data)
         });
 
-        // 2. الحفظ في Firebase
-        const newApp = {
-            appId: newAppId,
-            name: characterName,
-            job: jobTitle,
-            date: new Date().toLocaleDateString('ar-EG'),
-            status: "معلق",
-            reason: reason,
-            discordId: discordUser,
-            adminNote: ""
-        };
-
-        await database.ref('serverApplications').push(newApp);
-        
-        // 3. تحديث العداد
-        await database.ref('global_app_counter').set(currentCounter + 1);
-
-        showNotification(`✅ تم الإرسال بنجاح! رقمك هو: ${newAppId}`);
-        closeModal();
-        this.reset();
-        
+        if (response.ok) {
+            showNotification(`✅ تم الإرسال بنجاح! رقمك هو: ${newAppId}`);
+            saveToAdminDashboard(characterName, jobTitle, reason, discordUser, newAppId); 
+            closeModal();
+            this.reset();
+            if (typeof loadUserTrackingData === "function") loadUserTrackingData();
+        }
     } catch (error) {
-        console.error(error);
-        showNotification('❌ حدث خطأ في النظام', true);
+        showNotification('❌ حدث خطأ في الاتصال بالديسكورد', true);
     } finally {
         const submitBtn = this.querySelector('button[type="submit"]');
         submitBtn.innerText = "إرسال الطلب";
@@ -247,8 +219,8 @@ document.getElementById('job-form').addEventListener('submit', async function(e)
     }
 });
 
-
 function saveToAdminDashboard(name, job, reason, discordId, appId) {
+    // البيانات التي سيتم حفظها
     const newApp = {
         appId: appId,
         name: name,
@@ -260,8 +232,13 @@ function saveToAdminDashboard(name, job, reason, discordId, appId) {
         adminNote: ""
     };
 
-    // حفظ في Firebase بدل localStorage
-    database.ref('serverApplications').push(newApp);
+    database.ref('serverApplications').push(newApp)
+    .then(() => {
+        console.log("تم حفظ الطلب في قاعدة البيانات السحابية");
+    })
+    .catch((error) => {
+        console.error("خطأ في الحفظ:", error);
+    });
 }
 
 function getJobTitle(jobType) {
@@ -712,48 +689,61 @@ const mockJobs = [
     { name: "Mshari_X", job: "الميكانيكي", date: "2024/05/18", status: "معلق" }
 ];
 
-function loadUserTrackingData() {
-    const savedUser = JSON.parse(localStorage.getItem('user'));
-    const listContainer = document.getElementById('applications-list');
-    const noAppMsg = document.getElementById('no-app-message');
+function loadAdminData() {
+    const tableBody = document.getElementById('jobs-table-body');
+    if (!tableBody) return;
 
-    if (!savedUser || !listContainer) return;
-
+    // استبدال القراءة من المتصفح بالقراءة من Firebase
     database.ref('serverApplications').on('value', (snapshot) => {
         const data = snapshot.val();
-        listContainer.innerHTML = ''; 
+        let apps = [];
+        
+        // تحويل الكائنات القادمة من Firebase إلى مصفوفة قابلة للعرض
+        if (data) {
+            apps = Object.keys(data).map(key => ({
+                firebaseKey: key, // هذا المعرف مهم جداً للتعامل مع الطلب لاحقاً
+                ...data[key]
+            }));
+        }
 
-        if (!data) {
-            if (noAppMsg) noAppMsg.style.display = 'block';
+        // تحديث عدادات الإحصائيات بناءً على البيانات السحابية
+        if(document.getElementById('total-apps')) document.getElementById('total-apps').textContent = apps.length;
+        if(document.getElementById('approved-apps')) document.getElementById('approved-apps').textContent = apps.filter(a => a.status === 'مقبول').length;
+        if(document.getElementById('rejected-apps')) document.getElementById('rejected-apps').textContent = apps.filter(a => a.status === 'رفض').length;
+
+        tableBody.innerHTML = ""; 
+
+        if (apps.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="6" class="empty-msg">لا توجد طلبات تقديم حالياً</td></tr>`;
             return;
         }
 
-        const myApps = Object.values(data)
-            .filter(app => app.discordId === savedUser.id)
-            .reverse();
-
-        if (myApps.length === 0) {
-            if (noAppMsg) noAppMsg.style.display = 'block';
-        } else {
-            if (noAppMsg) noAppMsg.style.display = 'none';
-            myApps.forEach(app => {
-                const statusClass = app.status === 'مقبول' ? 'status-approved' : app.status === 'رفض' ? 'status-rejected' : 'status-pending';
-                listContainer.innerHTML += `
-                    <div class="status-box ${statusClass}">
-                        <div class="status-row"><span>رقم الطلب:</span><strong>${app.appId}</strong></div>
-                        <div class="status-row"><span>الوظيفة:</span><strong>${app.job}</strong></div>
-                        <div class="status-row"><span>الحالة:</span><span class="status-badge ${statusClass}">${app.status}</span></div>
-                        <div class="admin-notes-section">
-                            <span class="admin-notes-title">ملاحظات الإدارة:</span>
-                            <p style="margin: 0; font-size: 0.85rem; color: #ccc;">${app.adminNote || 'لا توجد ملاحظات حالياً.'}</p>
+        // عرض الطلبات بحيث يظهر الأحدث في الأعلى
+        [...apps].reverse().forEach((app) => {
+            const statusClass = app.status === 'مقبول' ? 'status-approved' : (app.status === 'رفض' ? 'status-rejected' : 'status-pending');
+            
+            tableBody.innerHTML += `
+                <tr>
+                    <td class="app-id-cell">${app.appId || '---'}</td>
+                    <td class="user-name">${app.name}</td>
+                    <td class="job-type">${app.job}</td>
+                    <td>
+                        <textarea id="admin-note-${app.firebaseKey}" 
+                                  class="admin-textarea" 
+                                  placeholder="أضف ملاحظة للمستخدم...">${app.adminNote || ''}</textarea>
+                    </td>
+                    <td><span class="status-tag ${statusClass}">${app.status}</span></td>
+                    <td>
+                        <div class="action-group">
+                            <button class="action-btn btn-accept" onclick="submitDecision('${app.firebaseKey}', 'مقبول')" title="قبول"><i class="fa-solid fa-check"></i></button>
+                            <button class="action-btn btn-decline" onclick="submitDecision('${app.firebaseKey}', 'رفض')" title="رفض"><i class="fa-solid fa-xmark"></i></button>
+                            <button class="action-btn btn-remove" onclick="deleteApplication('${app.firebaseKey}')" title="حذف"><i class="fa-solid fa-trash-can"></i></button>
                         </div>
-                    </div>`;
-            });
-        }
+                    </td>
+                </tr>`;
+        });
     });
 }
-
-
 function submitDecision(index, status) {
     const statusText = status === 'مقبول' ? 'قبول' : 'رفض';
     const icon = status === 'مقبول' ? 'fa-check-circle' : 'fa-circle-xmark';
@@ -816,7 +806,11 @@ function clearLogs() {
     }
 }
 
-
+const firebaseConfig = {
+    databaseURL: "https://planning-with-ai-60a3c-default-rtdb.firebaseio.com" 
+};
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
 
 function updateJobStatus(jobType) {
     const btn = document.getElementById(`toggle-${jobType}`);
@@ -998,18 +992,15 @@ function logoutUser() {
     );
 }
 
-function executeDecision(index, status) {
-    let apps = JSON.parse(localStorage.getItem('serverApplications')) || [];
-    const noteInput = document.getElementById(`admin-note-${index}`);
-    
-    apps[index].status = status;
-    apps[index].adminNote = noteInput ? noteInput.value : "";
-    
-    localStorage.setItem('serverApplications', JSON.stringify(apps));
-    
-    loadAdminData(); // تحديث الجدول
-    closeConfirmModal(); // إغلاق النافذة
-    
-    showNotification(`تم ${status === 'مقبول' ? 'قبول' : 'رفض'} الطلب بنجاح`);
-}
+function executeDecision(firebaseKey, status) {
+    const noteInput = document.getElementById(`admin-note-${firebaseKey}`);
+    const note = noteInput ? noteInput.value : "";
 
+    // تحديث الطلب في Firebase
+    database.ref('serverApplications/' + firebaseKey).update({
+        status: status,
+        adminNote: note
+    }).then(() => {
+        showNotification(`تم ${status} الطلب بنجاح`);
+    });
+}
